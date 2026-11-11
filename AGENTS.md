@@ -9,17 +9,19 @@
 ## Current Project Status
 - [x] Phase 1: Project setup and AGENTS.md and initialization
 - [x] Phase 2: Core Data structures (Python implementation) - Completed
-- [/] Phase 3: Classes, objects and decorators (Python) - In Progress
-- [ ] Phase 4: Porting core logic to Go (Structs & Methods)
-- [ ] Phase 5: JSON Persistence and Git workflow
+- [x] Phase 3: Classes, objects, decorators and CLI (Python) - First Version Complete
+- [ ] Phase 4: Python and Go tests
+- [ ] Phase 5: Porting core logic to Go (Structs & Methods)
+- [ ] Phase 6: JSON Persistence and Git workflow
 
 ## Session & Progress Notes
-- **Verification:** Verified `python/models.py`. Typo corrected (`.resolve()`), syntax clean and models verified.
-- **Phase 2 Complete:** `Commit` and `Repository` models implemented cleanly using `@dataclass` and `pathlib.Path`.
-- **Phase 3 Focus:** Implementing `python/git_parser.py`:
-  - Educational deep-dive into Python decorators (`@time_execution`).
-  - Safe subprocess execution of `git log` without shell injection risks (`shell=False`).
-  - Parsing raw output into `Commit` instances and integrating with `Repository`.
+- **Phase 2 Complete:** `python/models.py` defines `Commit` and `Repository` using `@dataclass` and `pathlib.Path`. Pylance found no syntax errors; focused runtime checks passed for fields, equality, frozen commits, hash and author validation, path normalization, independent commit lists, adding and counting commits, and invalid input and path errors.
+- **Phase 2 limits:** `Repository` checks that the resolved path is an existing directory, not that it is a Git repository or inside an allowed directory. `Commit` validates hash and author, but does not validate date or message types.
+- **Phase 3 First Version:** `python/git_parser.py` provides a timing decorator, Git subprocess integration, NUL-delimited parsing, full commit messages (`%B`), and accumulation without duplicate hashes. `python/main.py` provides a basic CLI, handles errors, and reports the number of loaded commits. Both `python python/main.py` and `python -m python.main` work from the repository root.
+- **Verification:** Focused checks passed for both CLI launch styles, duplicate prevention, invalid commit count and non-repository handling. These were ad hoc checks, not a persistent test suite.
+- **Remaining Python work:** The CLI reports loaded commits up to `--max-count` (default 50), not necessarily the repository's full history. Author breakdowns and top contributors described in `README.md` are not yet implemented. Verify full-message parsing end-to-end with a real commit containing a body; NUL framing assumes formatted Git fields contain no NUL characters.
+- **Next session: Phase 4 tests:** Build Python and Go tests before the Go port as requested. Go implementation files are placeholders, so test-first Go tests may fail to compile or run until Phase 5 implements their targets.
+- **Collaboration:** The user prefers to enter code by hand; ask before making changes and obtain explicit permission naming each file.
 
 ## Key Coding Conventions
 - Keep functions small and modular.
