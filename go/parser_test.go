@@ -49,3 +49,20 @@ func TestParseRecordsRejectsMalformedOutput(t *testing.T) {
 		})
 	}
 }
+
+func TestParseRecordsMultipleCommits(t *testing.T) {
+    raw := "abc123\x00Alex\x002026-01-01\x00First\n\x00" +
+        "def456\x00Sam\x002026-01-02\x00Second\n\x00"
+
+    commits, err := ParseRecords(raw)
+    if err != nil {
+        t.Fatalf("unexpected error: %v", err)
+    }
+    if len(commits) != 2 {
+        t.Fatalf("got %d commits; want 2", len(commits))
+    }
+
+    if commits[0].Hash != "abc123" || commits[1].Hash != "def456" {
+        t.Errorf("commits missing or out of order: %+v", commits)
+    }
+}
