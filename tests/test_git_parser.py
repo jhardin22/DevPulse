@@ -30,6 +30,12 @@ class ParseRecordsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             parse_records("\0".join(["abc123", "Alex", "2026-01-01", "Message"]))
 
+    def test_rejects_incomplete_record(self):
+        raw_output = "\0".join(["abc123", "Alex", "2026-01-01"]) + "\0"
+
+        with self.assertRaises(ValueError):
+            parse_records(raw_output)
+
 class GitIntegrationTests(unittest.TestCase):
     def test_reads_full_message_without_adding_duplicates(self):
         with TemporaryDirectory() as directory:
@@ -55,6 +61,34 @@ class GitIntegrationTests(unittest.TestCase):
             self.assertEqual(first[0].message, "Subject\n\nBody\n")
             self.assertEqual(first, second)
             self.assertEqual(repo.total_commits, 1)
+
+    def test_max_count_limits_results_and_later_loads_accumulate(self):
+        with TemporaryDirectory() as directory:
+            subprocess.run(["git", "init", "-q", directory], check=True)
+
+            for message in ("First", "Second"):
+                subprocess.run(
+                    [
+                        "git", "-C", directory,
+                        "-c", "user.name=Test Author",
+                        "-c", "user.email=test@example.invalid",
+                        "-c", "commit.gpgsign=false",
+                        "commit", "--allow-empty", "-q", "-m", message,
+                    ],
+                    check=True,
+                )
+
+            repo = Repository(directory)
+            latest = parse_git_log(repo, max_count=1)
+
+            self.assertEqual(len(latest), 1)
+            self.assertEqual(latest[0].message, "Second\n")
+            self.assertEqual(repo.total_commits, 1)
+
+            all_commits = parse_git_log(repo, max_count=2)
+
+            self.assertEqual(len(all_commits), 2)
+            self.assertEqual(repo.total_commits, 2)
 
 class GitValidationTests(unittest.TestCase):
     def test_invalid_max_count_does_not_run_git(self):
