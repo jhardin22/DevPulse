@@ -67,4 +67,4 @@ class GitValidationTests(unittest.TestCase):
                         with self.assertRaises(ValueError):
                             parse_git_log(repo, invalid_count)
                 
-                run_git_log.assert_not_called
+                run_git_log.assert_not_called()
