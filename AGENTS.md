@@ -10,7 +10,7 @@
 - [x] Phase 1: Project setup and AGENTS.md and initialization
 - [x] Phase 2: Core Data structures (Python implementation) - Completed
 - [x] Phase 3: Classes, objects, decorators and CLI (Python) - First Version Complete
-- [ ] Phase 4: Python and Go tests
+- [x] Phase 4: Python and Go tests - Completed (Go tests awaiting Phase 5 implementation)
 - [ ] Phase 5: Porting core logic to Go (Structs & Methods)
 - [ ] Phase 6: JSON Persistence and Git workflow
 
@@ -18,9 +18,11 @@
 - **Phase 2 Complete:** `python/models.py` defines `Commit` and `Repository` using `@dataclass` and `pathlib.Path`. Pylance found no syntax errors; focused runtime checks passed for fields, equality, frozen commits, hash and author validation, path normalization, independent commit lists, adding and counting commits, and invalid input and path errors.
 - **Phase 2 limits:** `Repository` checks that the resolved path is an existing directory, not that it is a Git repository or inside an allowed directory. `Commit` validates hash and author, but does not validate date or message types.
 - **Phase 3 First Version:** `python/git_parser.py` provides a timing decorator, Git subprocess integration, NUL-delimited parsing, full commit messages (`%B`), and accumulation without duplicate hashes. `python/main.py` provides a basic CLI, handles errors, and reports the number of loaded commits. Both `python python/main.py` and `python -m python.main` work from the repository root.
-- **Verification:** Focused checks passed for both CLI launch styles, duplicate prevention, invalid commit count and non-repository handling. These were ad hoc checks, not a persistent test suite.
-- **Remaining Python work:** The CLI reports loaded commits up to `--max-count` (default 50), not necessarily the repository's full history. Author breakdowns and top contributors described in `README.md` are not yet implemented. Verify full-message parsing end-to-end with a real commit containing a body; NUL framing assumes formatted Git fields contain no NUL characters.
-- **Next session: Phase 4 tests:** Build Python and Go tests before the Go port as requested. Go implementation files are placeholders, so test-first Go tests may fail to compile or run until Phase 5 implements their targets.
+- **Phase 4 Complete (Test Harnesses):**
+  - **Python (`unittest`):** `tests/__init__.py`, `tests/test_models.py`, `tests/test_git_parser.py`, and `tests/test_main.py` contain 20 passing tests covering model validation, `parse_records`, real-Git integration (full `%B` message bodies, `--max-count` limits, duplicate prevention), mocked invalid `max_count` checks, CLI error handling, and both CLI launch styles. `.vscode/settings.json` configures VS Code `unittest` discovery.
+  - **Go (test-first):** Initialized `go/go.mod` (`github.com/jhardin22/DevPulse/go`) and added `package main` to `go/main.go` and `go/parser.go`. Wrote `go/commit_test.go`, `go/repository_test.go`, and `go/parser_test.go` specifying `Commit`, `NewCommit`, `Repository`, `NewRepository`, `AddCommit`, `TotalCommits`, `ParseRecords`, and `ParseGitLog`. `go test ./...` currently fails to compile on those undefined symbols until Phase 5 implements them.
+- **Remaining Python work:** The CLI reports loaded commits up to `--max-count` (default 50), not necessarily the repository's full history. Author breakdowns and top contributors described in `README.md` are not yet implemented. NUL framing assumes formatted Git fields contain no NUL characters.
+- **Next session: Phase 5 Go Port:** Implement `Commit`/`Repository` structs and methods (e.g., in `go/models.go`) and `ParseRecords`/`ParseGitLog` in `go/parser.go` until `go test ./...` passes, then design and test the Go CLI in `go/main.go`. Use `os/exec` with separate arguments rather than shell command strings.
 - **Collaboration:** The user prefers to enter code by hand; ask before making changes and obtain explicit permission naming each file.
 
 ## Key Coding Conventions
@@ -38,9 +40,9 @@
 - **Subprocess integration:** Executes 'git log' and parses output into 'Commit' objects
 
 ### Go Port Structure ('go/')
-- **Structs:** 'Commit' and Repository fields matching the Python version
-- **Pointer Recievers:** methods attached to '*Repository' to modify state.
-- **Command execution:** Using 'os\exec' with Go error handling ('if err != nil').
+- **Structs & Constructors:** `Commit` (`Hash`, `Author`, `Date`, `Message`) with `NewCommit(hash, author, date, message string) (Commit, error)`, and `Repository` with `NewRepository(path string) (*Repository, error)`.
+- **Pointer Receivers:** `(*Repository).AddCommit(commit Commit)` and `(*Repository).TotalCommits() int`.
+- **Parsing & Command execution:** `ParseRecords(rawOutput string) ([]Commit, error)` and `ParseGitLog(repo *Repository, maxCount int) ([]Commit, error)` using `os/exec` with Go error handling (`if err != nil`).
 
 ## Rules for AI Collaborators
 1. Unless given direct instructions from a user to update a file within the repo, AI and Agents should only update AGENTS.md
