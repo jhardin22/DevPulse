@@ -12,7 +12,8 @@
 - [x] Phase 3: Classes, objects, decorators and CLI (Python) - First Version Complete
 - [x] Phase 4: Python and Go tests - Completed; all tests pass
 - [x] Phase 5: Porting core logic to Go (Structs & Methods) - Completed
-- [ ] Phase 6: Author Stats, JSON Persistence, and Git Workflow
+- [ ] Phase 6: Author Stats & Aggregation (Python + Go parity) - In Progress
+- [ ] Phase 7: JSON Persistence & Export (Python + Go parity)
 
 ## Session & Progress Notes
 - **Phase 2 Complete:** `python/models.py` defines `Commit` and `Repository` using `@dataclass` and `pathlib.Path`. Pylance found no syntax errors; focused runtime checks passed for fields, equality, frozen commits, hash and author validation, path normalization, independent commit lists, adding and counting commits, and invalid input and path errors.
@@ -21,18 +22,31 @@
 - **Phase 4 Complete (Test Harnesses):**
   - **Python (`unittest`):** `tests/__init__.py`, `tests/test_models.py`, `tests/test_git_parser.py`, and `tests/test_main.py` contain 20 passing tests covering model validation, `parse_records`, real-Git integration (full `%B` message bodies, `--max-count` limits, duplicate prevention), mocked invalid `max_count` checks, CLI error handling, and both CLI launch styles. `.vscode/settings.json` configures VS Code `unittest` discovery.
   - **Go (test-first):** Initialized `go/go.mod` (`github.com/jhardin22/DevPulse/go`) and wrote tests for the models and parser. The user reports that all Go tests pass.
-- **Remaining Python work:** The CLI reports loaded commits up to `--max-count` (default 50), not necessarily the repository's full history. Author breakdowns and top contributors described in `README.md` are folded into Phase 6. NUL framing assumes formatted Git fields contain no NUL characters.
-- **Phase 5 Go Port (Completed):** Implemented `Commit`/`Repository` structs and methods in `go/models.go`, `ParseRecords`/`ParseGitLog` in `go/parser.go` using `exec.CommandContext` with separate arguments, the CLI (`run` + `main`) in `go/main.go`, and CLI tests in `go/main_test.go`. All Go and Python tests pass.
-- **Next Session — Phase 6 Plan (Author Stats, JSON Persistence & Git Workflow):**
-  1. **Author Stats & Aggregation (Python + Go parity):**
-     - Compute per-author commit count, percentage share of loaded commits, and first/last commit timestamps (parsed from `%aI` using `datetime.fromisoformat` in Python and `time.Parse(time.RFC3339, ...)` in Go).
-     - Produce a sorted top-contributors summary (descending by commit count, alphabetical by author name on ties for deterministic output).
-     - Add CLI support (e.g., `--top N`) and unit tests in both `tests/` and `go/`.
-  2. **JSON Persistence / Export (Python + Go parity):**
-     - Define a shared JSON report schema (repository path, total commits, author stats, and optionally commits) using `json` / `dataclasses.asdict` in Python and `encoding/json` with `json:"..."` struct tags in Go.
-     - Add `--json` (print JSON to stdout) and/or `--output <path>` (write JSON to file) CLI flags.
-     - **Security notes to cover:** validate `--output` paths against unintended overwrites/traversal, write files with restrictive permissions (`0600`), and avoid including author emails (`%ae`) by default to limit PII in exported artifacts.
-  3. **Git Workflow:** Stage, review, and commit completed Phase 5 work on `feature/go-api-build` (or open a PR) before starting Phase 6 implementation.
+- **Remaining Python work:** The CLI reports loaded commits up to `--max-count` (default 50), not necessarily the repository's full history. Author breakdowns and top contributors described in `README.md` are part of Phase 6. NUL framing assumes formatted Git fields contain no NUL characters.
+- **Phase 5 Go Port (Completed & Merged):** Implemented `Commit`/`Repository` structs and methods in `go/models.go`, `ParseRecords`/`ParseGitLog` in `go/parser.go` using `exec.CommandContext` with separate arguments, the CLI (`run` + `main`) in `go/main.go`, and CLI tests in `go/main_test.go`. PR #2 (`feature/go-api-build` -> `main`, commit `e4d63b4`) is merged.
+- **Phase 6 Progress:** Python `AuthorStats` is implemented in `python/models.py`; its tests in `tests/test_models.py` cover values, equality, immutability, boundaries, and invalid fields. Python `aggregate_authors` is implemented in `python/stats.py`, with tests for empty input, counts, shares, sorting, timezone ordering, and invalid timestamps in `tests/test_stats.py`. The user's focused model and stats test commands exited successfully. Next, add Python CLI integration, writing tests first.
+- **Phase 6 Plan — Author Stats & Aggregation (Python + Go parity, Hybrid Option 2):**
+  - **Branch:** `feature/author-stats-and-aggregation` (confirmed by the user's previously selected `git status` output; may have changed since).
+  - **Architecture (Option 2 — Hybrid Schema vs. Logic):**
+    - Keep `AuthorStats` data structures in `python/models.py` and `go/models.go` (matching the existing `models` vs. `parser` split and keeping all Phase 7 JSON-serializable schemas together).
+    - Place aggregation and formatting/top-N logic in dedicated modules: `python/stats.py` and `go/stats.go`.
+  1. **Data Model (`AuthorStats`) designed for Phase 7 JSON readiness:**
+     - Fields (snake_case for Python & Go JSON tags in Phase 7): `author` (`str`/`string`), `commit_count` (`int`), `share_percent` (`float`/`float64`), `first_commit` (`str`/`string`, ISO-8601/RFC3339), `last_commit` (`str`/`string`, ISO-8601/RFC3339).
+     - `AuthorStats` is immutable/value data (`@dataclass(frozen=True)` in Python; value struct in Go) with validation (`author` non-empty, `commit_count >= 1`, `0.0 <= share_percent <= 100.0`).
+  2. **Aggregation & Timestamp Parsing (`python/stats.py`, `go/stats.go`):**
+     - `aggregate_authors(commits)` / `AggregateAuthors(commits []Commit) ([]AuthorStats, error)` accepts commits (or `Repository.commits`) and returns sorted `[]AuthorStats`.
+     - Parse `%aI` commit timestamps into timezone-aware instants (`datetime.fromisoformat` in Python 3.11+, `time.Parse(time.RFC3339, ...)` in Go) before comparing min/max—reject empty/invalid or naive timestamps rather than silently misordering across timezones.
+     - Preserve the original timestamp string of the earliest/latest commit for `first_commit` and `last_commit`.
+     - Compute `commit_count` and `share_percent` (rounded cleanly at presentation time or stored as float; return empty list cleanly if `commits` is empty to avoid division by zero).
+     - Sort deterministically: descending by `commit_count`, then ascending alphabetically by `author` (case-sensitive UTF-8/codepoint order for exact Python/Go parity).
+  3. **CLI & Testing:**
+     - Add `--top N` (and `top_authors` / top-N slicing helper) to both `python/main.py` and `go/main.go` (rejecting `--top < 1` with exit code `2` like `--max-count`).
+     - Print loaded commit count plus a clean contributor breakdown table.
+     - Add unit tests in `tests/test_stats.py`, `tests/test_models.py`, `tests/test_main.py`, and Go `go/stats_test.go`, `go/main_test.go` (updating exact stdout match assertions in `go/main_test.go`).
+- **Phase 7 Plan — JSON Persistence & Export (Deferred from Phase 6):**
+  - Define a shared JSON report schema wrapping repository path, total commits, and `AuthorStats` list (using `json`/`dataclasses.asdict` in Python and `encoding/json` in Go).
+  - Add `--json` (stdout) and `--output <path>` (file export) flags.
+  - **Security notes to cover:** validate `--output` paths against unintended overwrites/traversal, write files with restrictive permissions (`0600`), and exclude author emails (`%ae`) by default to limit PII in exported artifacts.
 - **Collaboration:** The user prefers to enter code by hand; ask before making changes and obtain explicit permission naming each file.
 
 ## Key Coding Conventions

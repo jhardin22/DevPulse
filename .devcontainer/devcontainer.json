@@ -5,7 +5,8 @@
     "vscode": {
       "extensions": [
         "ms-python.python",
-        "golang.Go"
+        "golang.Go",
+        "google.google-antigravity"
       ]
     }
   },

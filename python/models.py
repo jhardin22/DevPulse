@@ -81,4 +81,38 @@ class Repository:
         """Return the total number of commits recorded."""
         return len(self.commits)
 
+@dataclass(frozen=True)
+class AuthorStats:
+    """Immunatble aggregated commit statistics for a single author.
     
+    Attributes:
+        author (str): The commit author's display name.
+        commit_count (int): Number of commits attributed to the author.
+        share_percent (float): Percentage of loaded commits (0.0 to 100.0).
+        first_commit (str): Earliest commit timestamp (ISO-8601/RFC3339).
+        last_commit (str): Latest commit timestamp (ISO-8601/RFC3339)
+    """
+
+    author: str
+    commit_count: int
+    share_percent: float
+    first_commit: str
+    last_commit: str
+
+    def __post_init__(self) -> None:
+        """Validate aggregated author metris upon initialization."""
+        if not self.author or not isinstance(self.author, str):
+            raise ValueError("Author name must be a non-empty string.")
+        if isinstance(self.commit_count, bool) or not isinstance(self.commit_count, int) or self.commit_count < 1:
+            raise ValueError("commit_count must be a positive integer")
+        if (
+            isinstance(self.share_percent, bool)
+            or not isinstance(self.share_percent, (int, float))
+            or not (0.0 <= self.share_percent <= 100.0)
+        ):
+            raise ValueError("share_percent must be a finite number between 0 and 100")
+        if not self.first_commit or not isinstance(self.first_commit, str):
+            raise ValueError("first_commit must be a non-empty timestamp string")
+        if not self.last_commit or not isinstance(self.last_commit, str):
+            raise ValueError("last_commit must be a non-empty timestamp string")
+        
